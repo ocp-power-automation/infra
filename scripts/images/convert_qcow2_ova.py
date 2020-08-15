@@ -21,10 +21,10 @@ help_message = """convert_qcow2_ova.py -u <imageUrl> -s <imageSize> -n <imageNam
 -u, --imageUrl                 URL pointing to the qcow2.gz or the absolute local file path
 -s, --imageSize                Size of the image you want to create
 -n, --imageName                Name of the ova image file
--d, --imageDist                Image distribution; coreos, rhel
+-d, --imageDist                Image distribution; coreos, rhel, centos
 -U, --rhUser                   Redhat Subscription username(for RHEL)
 -P, --rhPassword               Redhat Subscription password(for RHEL)
--O, --osPassword               OS username (for RHEL)
+-O, --osPassword               OS username (for RHEL and CentOS)
 
 Note:
     - qemu-img binary should be available
@@ -35,6 +35,7 @@ Note:
     - This script supports only official RHEL Cloud image(standard partitioning with two partitions) as of now
     - You can download the the RHEL cloud image(Red Hat Enterprise Linux 8.2 Update KVM Guest Image) 
         from support site(https://access.redhat.com/downloads/content/279/ver=/rhel---8/8.2/ppc64le/product-software)
+    - You can get the CentOS image from https://cloud.centos.org/centos/8/ppc64le/images/CentOS-8-GenericCloud-8.2.2004-20200611.2.ppc64le.qcow2
 """
 
 template_meta = """os-type = rhel
@@ -83,7 +84,9 @@ template_ovf = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 template_rhel_bash = """#!/bin/bash
-subscription-manager register --force --auto-attach --username={{ rh_sub_username }} --password={{ rh_sub_password }}
+if [ "{{ distribution }}" == "rhel"];then
+    subscription-manager register --force --auto-attach --username={{ rh_sub_username }} --password={{ rh_sub_password }}
+fi
 yum update -y
 yum install http://public.dhe.ibm.com/systems/virtualization/powervc/rhel8_cloud_init/cloud-init-19.1-4.ibm.el8.noarch.rpm -y
 ln -s /usr/lib/systemd/system/cloud-init-local.service /etc/systemd/system/multi-user.target.wants/cloud-init-local.service
@@ -101,8 +104,10 @@ sed -i 's/GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX="console=tty0 console=hvc0,1
 grub2-mkconfig -o /boot/grub2/grub.cfg
 rm -rf /etc/sysconfig/network-scripts/ifcfg-eth0
 echo {{ root_password }} | passwd root --stdin
-subscription-manager unregister
-subscription-manager clean
+if [ "{{ distribution }}" == "rhel"];then
+    subscription-manager unregister
+    subscription-manager clean
+fi
 touch /.autorelabel"""
 
 template_cloud_config = """# The top level settings are used as module
@@ -157,6 +162,7 @@ cloud_init_modules:
 
 # The modules that run in the 'config' stage
 cloud_config_modules:
+ - reset_rmc
  - ssh-import-id
  - locale
  - set-passwords
@@ -185,7 +191,6 @@ cloud_final_modules:
  - phone-home
  - final-message
  - power-state-change
- - reset_rmc
 
 # System and/or distro specific settings
 # (not accessible to handlers/transforms)
@@ -251,7 +256,7 @@ def create_tar(image_file_source, image_file_path):
         for name in os.listdir('.'):
             tar.add(name)
 
-def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword):
+def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword, imageDist):
     mount_dir = tmpdir + '/' + 'tempMount'
     rhel_bash_file = mount_dir  + '/' + 'rhel_bash.sh'
     rhel_cloud_config_file = mount_dir  + '/etc/cloud/' + 'cloud.cfg'
@@ -293,7 +298,7 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
                 sys.exit(2)
 
         rhel_bash_template = Template(template_rhel_bash)
-        rhel_bash = rhel_bash_template.render(rh_sub_username=rhUser, rh_sub_password=rhPassword, root_password=osPassword )
+        rhel_bash = rhel_bash_template.render(rh_sub_username=rhUser, rh_sub_password=rhPassword, root_password=osPassword, distribution=imageDist )
         with open(rhel_bash_file, "w") as stream:
             stream.write(rhel_bash)
         st = os.stat(rhel_bash_file)
@@ -369,9 +374,9 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
         if ret != 0:
             print('ERROR: problem converting file (do you have qemu-img installed?)')
             sys.exit(2)
-        if imageDist == 'rhel':
+        if imageDist == 'rhel' or  imageDist == 'centos':
             print("Preparing rhel image...")
-            prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword)
+            prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword, imageDist)
 
         print("Resizing image ....")
         cmd = 'qemu-img resize ' + extracted_raw_file_path + ' ' + imageSize + 'G'
@@ -448,6 +453,10 @@ def main(argv):
     if imageDist == 'coreos' and ( ImageUrl is None or imageSize is None or imageName is None ):
         print("Please set ImageUrl, imageSize, and imageName")
         sys.exit(2)
+    if imageDist == 'centos' and ( ImageUrl is None or imageSize is None or imageName is None or osPassword is None ):
+        print("Please set ImageUrl, imageSize, osPassword and imageName")
+        sys.exit(2)
+    
     convert_qcow2_ova(ImageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword)
 
 
