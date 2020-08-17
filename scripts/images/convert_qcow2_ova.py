@@ -359,14 +359,16 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
 
     try:
         os.mkdir(converted_images_dir) # Target directory to keep volume, meta and ovf files
-        if imageUrl.startswith('http://'):
+        if imageUrl.startswith('http://') or imageUrl.startswith('https://'):
             print("Download image.......")
             get_image(imageUrl, image_file_path )
         else:
             shutil.copyfile(imageUrl, image_file_path)
-
-        print("Extracting gz image...")
-        gzip_gunzip(image_file_path, extracted_qcow2_file_path, 65536)
+        if image_file_path.endswith(".gz"):
+            print("Extracting gz image...")
+            gzip_gunzip(image_file_path, extracted_qcow2_file_path, 65536)
+        else:
+            extracted_qcow2_file_path = image_file_path
 
         print("Converting to raw ....")
         cmd =  'qemu-img convert -f qcow2 -O raw ' + extracted_qcow2_file_path  + '  ' + extracted_raw_file_path
