@@ -84,7 +84,11 @@ template_ovf = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 template_rhel_bash = """#!/bin/bash
-if [ "{{ distribution }}" == "rhel"];then
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o xtrace
+if [ "{{ distribution }}" == "rhel" ];then
     subscription-manager register --force --auto-attach --username={{ rh_sub_username }} --password={{ rh_sub_password }}
 fi
 yum update -y
@@ -104,7 +108,7 @@ sed -i 's/GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX="console=tty0 console=hvc0,1
 grub2-mkconfig -o /boot/grub2/grub.cfg
 rm -rf /etc/sysconfig/network-scripts/ifcfg-eth0
 echo {{ root_password }} | passwd root --stdin
-if [ "{{ distribution }}" == "rhel"];then
+if [ "{{ distribution }}" == "rhel" ];then
     subscription-manager unregister
     subscription-manager clean
 fi
