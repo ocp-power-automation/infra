@@ -294,7 +294,7 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
         if ret != 0:
             print('ERROR: Failed mounting the device:', err)
             sys.exit(2)
-        for sdir in ('/proc', '/dev', '/sys', '/var/run/'):
+        for sdir in ('/proc', '/dev', '/sys', '/var/run/', '/etc/machine-id'):
             cmd = 'mount -o bind ' + sdir + ' ' + mount_dir + sdir
             out, err, ret = exec_cmd(cmd)
             if ret != 0:
@@ -329,7 +329,7 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
         os.chroot('.')
         os.close(real_root)
         print("Unmounting all")
-        for sdir in ('/proc', '/dev', '/sys', '/var/run/'):
+        for sdir in ('/proc', '/dev', '/sys', '/var/run/', '/etc/machine-id'):
             cmd = 'umount ' + mount_dir + sdir
             out, err, ret = exec_cmd(cmd)
             if ret != 0:
