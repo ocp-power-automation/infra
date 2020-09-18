@@ -427,6 +427,9 @@ def main(argv):
     ImageUrl = ''
     imageSize = ''
     imageName = ''
+    rhUser = ''
+    rhPassword = ''
+
     try:
         (opts, args) = getopt.getopt(argv, 'hu:s:n:d:U:P:O:', [
             'imageUrl=',
