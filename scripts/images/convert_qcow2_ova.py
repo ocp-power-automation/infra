@@ -88,6 +88,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 set -o xtrace
+
+mv /etc/resolv.conf /etc/resolv.conf.orig | true
+echo "nameserver 9.9.9.9" | tee /etc/resolv.conf
+
 if [ "{{ distribution }}" == "rhel" ];then
     subscription-manager register --force --auto-attach --username={{ rh_sub_username }} --password={{ rh_sub_password }}
 fi
@@ -112,6 +116,7 @@ if [ "{{ distribution }}" == "rhel" ];then
     subscription-manager unregister
     subscription-manager clean
 fi
+mv /etc/resolv.conf.orig /etc/resolv.conf | true
 touch /.autorelabel"""
 
 template_cloud_config = """# The top level settings are used as module
