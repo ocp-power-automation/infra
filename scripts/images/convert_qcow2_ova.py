@@ -295,7 +295,7 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
 
     try:
         print("mounting the loop device ...")
-        cmd = 'mount ' + loop_device + 'p2' + ' ' + mount_dir
+        cmd = 'mount -o nouuid ' + loop_device + 'p2' + ' ' + mount_dir
         out, err, ret = exec_cmd(cmd)
         if ret != 0:
             print('ERROR: Failed mounting the device:', err)
