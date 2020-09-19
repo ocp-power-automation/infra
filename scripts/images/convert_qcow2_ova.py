@@ -24,7 +24,7 @@ help_message = """convert_qcow2_ova.py -u <imageUrl> -s <imageSize> -n <imageNam
 -d, --imageDist                Image distribution; coreos, rhel, centos
 -U, --rhUser                   Redhat Subscription username(for RHEL)
 -P, --rhPassword               Redhat Subscription password(for RHEL)
--O, --osPassword               OS username (for RHEL and CentOS)
+-O, --osPassword               OS password (for RHEL and CentOS)
 
 Note:
     - qemu-img binary should be available
