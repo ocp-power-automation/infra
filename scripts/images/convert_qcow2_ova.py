@@ -10,6 +10,7 @@ import urllib.request
 import tempfile
 import shutil
 import stat
+import math
 from urllib.parse import urlparse
 from pathlib import Path
 from jinja2 import Template
@@ -19,7 +20,7 @@ from jinja2 import Template
 help_message = """convert_qcow2_ova.py -u <imageUrl> -s <imageSize> -n <imageName> -d <imageDist> -U <rhUser> -P <rhPassword> -O <osPassword>
 
 -u, --imageUrl                 URL pointing to the qcow2.gz or the absolute local file path
--s, --imageSize                Size of the image you want to create
+-s, --imageSize                Size (in GB) of the image you want to create
 -n, --imageName                Name of the ova image file
 -d, --imageDist                Image distribution; coreos, rhel, centos
 -U, --rhUser                   Redhat Subscription username(for RHEL)
@@ -294,7 +295,7 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
 
     try:
         print("mounting the loop device ...")
-        cmd = 'mount ' + loop_device + 'p2' + ' ' + mount_dir
+        cmd = 'mount -o nouuid ' + loop_device + 'p2' + ' ' + mount_dir
         out, err, ret = exec_cmd(cmd)
         if ret != 0:
             print('ERROR: Failed mounting the device:', err)
@@ -422,6 +423,15 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
     finally:
         shutil.rmtree(tmpdir)
 
+def check_tmp_freespace(imageSize):
+    #Calculate freespace in GB. 
+    freespace_gb = shutil.disk_usage("/tmp")[2]/(1024 * 1024 * 1024)
+    #Add 1GB buffer
+    freespace_gb_buffer = math.ceil(freespace_gb + 1) 
+    if freespace_gb_buffer < float(imageSize):
+        print("Minimum ", freespace_gb_buffer, "GB", " space required in /tmp")
+        sys.exit(2)
+
     
 def main(argv):
     ImageUrl = ''
@@ -440,6 +450,10 @@ def main(argv):
             'rhPassword',
             'osPassword'
         ])
+        if len(argv) < 14:
+            print(help_message)
+            sys.exit(2)
+       
     except getopt.GetoptError:
         print(help_message)
         sys.exit(2)
@@ -471,6 +485,9 @@ def main(argv):
         print("Please set ImageUrl, imageSize, osPassword and imageName")
         sys.exit(2)
     
+    #Check free space in `/tmp` and if less than imageSize bail out
+    check_tmp_freespace(imageSize)
+
     convert_qcow2_ova(ImageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword)
 
 

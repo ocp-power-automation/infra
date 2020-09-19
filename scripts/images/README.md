@@ -1,9 +1,12 @@
 # Guide to use automation script for conversion of qcow2 image to ova
+This needs to be run on a Linux system with CPU arch matching the image architecture.
+For example converting ppc64le images will require a ppc64le Linux system
 
 ## Requirements
 - Install python (version 3 and above)
-- Install qemu for image conversion
-
+- Install qemu-img package 
+- Ensure a minimum of 120 GB free disk space in /tmp
+ 
 ## Setup Repository
 Clone this git repository on the client machine:
 ```
