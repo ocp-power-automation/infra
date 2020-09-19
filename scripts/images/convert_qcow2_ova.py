@@ -440,6 +440,10 @@ def main(argv):
             'rhPassword',
             'osPassword'
         ])
+        if len(argv) < 14:
+            print(help_message)
+            sys.exit(2)
+       
     except getopt.GetoptError:
         print(help_message)
         sys.exit(2)
