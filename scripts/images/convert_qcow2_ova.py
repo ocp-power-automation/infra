@@ -109,7 +109,9 @@ rpm -vih --nodeps http://public.dhe.ibm.com/software/server/POWER/Linux/yum/down
 sed -i 's/^more \/opt\/ibm\/lop\/notice/#more \/opt\/ibm\/lop\/notice/g' /opt/ibm/lop/configure
 echo 'y' | /opt/ibm/lop/configure
 yum install  powerpc-utils librtas DynamicRM  devices.chrp.base.ServiceRM rsct.opt.storagerm rsct.core rsct.basic rsct.core src -y
+sed -i 's/GRUB_TIMEOUT=.*$/GRUB_TIMEOUT=60/g' /etc/default/grub
 sed -i 's/GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX="console=tty0 console=hvc0,115200n8  biosdevname=0  crashkernel=auto"/g' /etc/default/grub
+dracut --regenerate-all --force
 grub2-mkconfig -o /boot/grub2/grub.cfg
 rm -rf /etc/sysconfig/network-scripts/ifcfg-eth0
 echo {{ root_password }} | passwd root --stdin
@@ -223,6 +225,7 @@ system_info:
 
 
 def exec_cmd(cmd):
+    print("command:", cmd)
     execute = subprocess.run([cmd], shell=True, universal_newlines=True,
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return execute.stdout, execute.stderr, execute.returncode
