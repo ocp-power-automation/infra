@@ -15,8 +15,6 @@ from urllib.parse import urlparse
 from pathlib import Path
 from jinja2 import Template
 
-
-
 help_message = """convert_qcow2_ova.py -u <imageUrl> -s <imageSize> -n <imageName> -d <imageDist> -U <rhUser> -P <rhPassword> -O <osPassword>
 
 -u, --imageUrl                 URL pointing to the qcow2.gz or the absolute local file path
@@ -175,6 +173,7 @@ cloud_init_modules:
 # The modules that run in the 'config' stage
 cloud_config_modules:
  - reset_rmc
+ - refresh_rmc_and_interface
  - ssh-import-id
  - locale
  - set-passwords
@@ -227,8 +226,9 @@ system_info:
 def exec_cmd(cmd):
     print("command:", cmd)
     execute = subprocess.run([cmd], shell=True, universal_newlines=True,
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return execute.stdout, execute.stderr, execute.returncode
+
 
 def gzip_gunzip(sfile, dfile, block_size=65536):
     with gzip.open(sfile, 'rb') as s_file, open(dfile, 'wb') as d_file:
@@ -239,42 +239,59 @@ def gzip_gunzip(sfile, dfile, block_size=65536):
             else:
                 d_file.write(block)
 
+
 def gzip_gzip(sfile, dfile, block_size=65536):
-    with gzip.open(dfile, 'wb') as d_file, open(sfile, 'rb') as s_file:
-        while True:
-            block = s_file.read(block_size)
-            if not block:
-                break
-            else:
-                d_file.write(block)
+    # run the pigz if present in the system for better performance
+    pigz_path = shutil.which("pigz")
+    if pigz_path != "":
+        print("pigz found in ", pigz_path, " will use pigz for gzip")
+        cmd = 'pigz -k -c ' + sfile + ' > ' + dfile
+        out, err, ret = exec_cmd(cmd)
+        if ret != 0:
+            print('ERROR: Failed to gzip the file:', err)
+            sys.exit(2)
+    else:
+        with gzip.open(dfile, 'wb') as d_file, open(sfile, 'rb') as s_file:
+            while True:
+                block = s_file.read(block_size)
+                if not block:
+                    break
+                else:
+                    d_file.write(block)
+
 
 def get_image_name(image_url):
     a = urlparse(image_url)
     return (os.path.basename(a.path))
 
+
 def get_image(image_url, image_file):
     with urllib.request.urlopen(image_url) as response, open(image_file, 'wb') as out_file:
-        data = response.read() # a `bytes` object
+        data = response.read()  # a `bytes` object
         out_file.write(data)
+
 
 def remove_extn(file_path):
     return os.path.splitext(file_path)[0]
 
+
 def get_file_size(image_file):
     return Path(image_file).stat().st_size
 
+
 def create_tar(image_file_source, image_file_path):
-    with tarfile.open( image_file_path, "w" ) as tar:
+    with tarfile.open(image_file_path, "w") as tar:
         os.chdir(image_file_source)
         for name in os.listdir('.'):
             tar.add(name)
 
+
 def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword, imageDist):
     mount_dir = tmpdir + '/' + 'tempMount'
-    rhel_bash_file = mount_dir  + '/' + 'rhel_bash.sh'
-    rhel_cloud_config_file = mount_dir  + '/etc/cloud/' + 'cloud.cfg'
+    rhel_bash_file = mount_dir + '/' + 'rhel_bash.sh'
+    rhel_cloud_config_file = mount_dir + '/etc/cloud/' + 'cloud.cfg'
     real_root = os.open("/", os.O_RDONLY)
-    os.mkdir(mount_dir) # Temporary mount directory
+    os.mkdir(mount_dir)  # Temporary mount directory
     print("Getting a free loop device ...")
     cmd = 'losetup --nooverlap  --partscan  -f ' + extracted_raw_file_path
     out, err, ret = exec_cmd(cmd)
@@ -311,7 +328,8 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
                 sys.exit(2)
 
         rhel_bash_template = Template(template_rhel_bash)
-        rhel_bash = rhel_bash_template.render(rh_sub_username=rhUser, rh_sub_password=rhPassword, root_password=osPassword, distribution=imageDist )
+        rhel_bash = rhel_bash_template.render(rh_sub_username=rhUser, rh_sub_password=rhPassword,
+                                              root_password=osPassword, distribution=imageDist)
         with open(rhel_bash_file, "w") as stream:
             stream.write(rhel_bash)
         st = os.stat(rhel_bash_file)
@@ -356,25 +374,24 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
             print('ERROR: Failed to release the device:', err)
 
 
-
 def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword):
     current_dir = os.getcwd()
-    tmpdir = tempfile.mkdtemp() # Temporary work directory
-    image_file_name = get_image_name(imageUrl) # Get image file name from url
-    image_file_path = tmpdir + '/' + image_file_name 
+    tmpdir = tempfile.mkdtemp()  # Temporary work directory
+    image_file_name = get_image_name(imageUrl)  # Get image file name from url
+    image_file_path = tmpdir + '/' + image_file_name
     extracted_qcow2_file_path = tmpdir + '/' + remove_extn(image_file_name)
     converted_images_dir = tmpdir + '/' + "image"
-    extracted_raw_file_path =  converted_images_dir + '/' + remove_extn(remove_extn(image_file_name))
+    extracted_raw_file_path = converted_images_dir + '/' + remove_extn(remove_extn(image_file_name))
     meta_data_file = converted_images_dir + '/' + imageName + '.meta'
     ovf_data_file = converted_images_dir + '/' + imageName + '.ovf'
     ova_image_file = tmpdir + '/' + imageName + '.ova'
-    ova_gz_image_file = tmpdir + '/' + imageName + '.ova.gz' 
+    ova_gz_image_file = tmpdir + '/' + imageName + '.ova.gz'
 
     try:
-        os.mkdir(converted_images_dir) # Target directory to keep volume, meta and ovf files
+        os.mkdir(converted_images_dir)  # Target directory to keep volume, meta and ovf files
         if imageUrl.startswith('http://') or imageUrl.startswith('https://'):
             print("Download image.......")
-            get_image(imageUrl, image_file_path )
+            get_image(imageUrl, image_file_path)
         else:
             shutil.copyfile(imageUrl, image_file_path)
         if image_file_path.endswith(".gz"):
@@ -384,12 +401,12 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
             extracted_qcow2_file_path = image_file_path
 
         print("Converting to raw ....")
-        cmd =  'qemu-img convert -f qcow2 -O raw ' + extracted_qcow2_file_path  + '  ' + extracted_raw_file_path
+        cmd = 'qemu-img convert -f qcow2 -O raw ' + extracted_qcow2_file_path + '  ' + extracted_raw_file_path
         out, err, ret = exec_cmd(cmd)
         if ret != 0:
             print('ERROR: problem converting file (do you have qemu-img installed?)')
             sys.exit(2)
-        if imageDist == 'rhel' or  imageDist == 'centos':
+        if imageDist == 'rhel' or imageDist == 'centos':
             print("Preparing rhel image...")
             prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword, imageDist)
 
@@ -411,7 +428,8 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
 
         print("Preparing ovf data file...")
         ovf_data_template = Template(template_ovf)
-        ovf_data = ovf_data_template.render(imagename=imageName, volumesize=volumesize, volumename=remove_extn(remove_extn(image_file_name)))
+        ovf_data = ovf_data_template.render(imagename=imageName, volumesize=volumesize,
+                                            volumename=remove_extn(remove_extn(image_file_name)))
         with open(ovf_data_file, "w") as stream:
             stream.write(ovf_data)
 
@@ -421,21 +439,21 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
         print("Compressing ova file...")
         gzip_gzip(ova_image_file, ova_gz_image_file)
 
-
         shutil.move(ova_gz_image_file, current_dir)
     finally:
         shutil.rmtree(tmpdir)
 
+
 def check_tmp_freespace(imageSize):
-    #Calculate freespace in GB. 
-    freespace_gb = shutil.disk_usage("/tmp")[2]/(1024 * 1024 * 1024)
-    #Add 1GB buffer
-    freespace_gb_buffer = math.ceil(freespace_gb + 1) 
+    # Calculate freespace in GB.
+    freespace_gb = shutil.disk_usage("/tmp")[2] / (1024 * 1024 * 1024)
+    # Add 1GB buffer
+    freespace_gb_buffer = math.ceil(freespace_gb + 1)
     if freespace_gb_buffer < float(imageSize):
         print("Minimum ", freespace_gb_buffer, "GB", " space required in /tmp")
         sys.exit(2)
 
-    
+
 def main(argv):
     ImageUrl = ''
     imageSize = ''
@@ -456,7 +474,7 @@ def main(argv):
         if len(argv) < 14:
             print(help_message)
             sys.exit(2)
-       
+
     except getopt.GetoptError:
         print(help_message)
         sys.exit(2)
@@ -478,17 +496,17 @@ def main(argv):
             rhPassword = arg
         elif opt in ('-O', '--osPassword'):
             osPassword = arg
-    if imageDist == 'rhel' and ( rhUser is None or rhPassword is None or osPassword is None ):
+    if imageDist == 'rhel' and (rhUser is None or rhPassword is None or osPassword is None):
         print("Please set rhUser,rhPassword, and osPassword")
         sys.exit(2)
-    if imageDist == 'coreos' and ( ImageUrl is None or imageSize is None or imageName is None ):
+    if imageDist == 'coreos' and (ImageUrl is None or imageSize is None or imageName is None):
         print("Please set ImageUrl, imageSize, and imageName")
         sys.exit(2)
-    if imageDist == 'centos' and ( ImageUrl is None or imageSize is None or imageName is None or osPassword is None ):
+    if imageDist == 'centos' and (ImageUrl is None or imageSize is None or imageName is None or osPassword is None):
         print("Please set ImageUrl, imageSize, osPassword and imageName")
         sys.exit(2)
-    
-    #Check free space in `/tmp` and if less than imageSize bail out
+
+    # Check free space in `/tmp` and if less than imageSize bail out
     check_tmp_freespace(imageSize)
 
     convert_qcow2_ova(ImageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword)
@@ -496,3 +514,4 @@ def main(argv):
 
 if __name__ == '__main__':
     main(sys.argv[1:])
+
