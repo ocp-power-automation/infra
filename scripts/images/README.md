@@ -17,8 +17,8 @@
   - Install `jinja2` & `boto3` modules with `pip3`
   - Upgrade `PyYAML` module to v5.1 or newer; see https://stackoverflow.com/questions/55551191/module-yaml-has-no-attribute-fullloader
 - Install `qemu-img` package
-- Install 'ibmcloud` CLI; see https://cloud.ibm.com/docs/power-iaas-cli-plugin?topic=power-iaas-cli-plugin-power-iaas-cli-reference
-- Ensure a minimum of 120 GB free disk space in /tmp
+- Install PowerVS (`power-iaas`) CLI; see https://cloud.ibm.com/docs/power-iaas-cli-plugin?topic=power-iaas-cli-plugin-power-iaas-cli-reference
+- Ensure a minimum of 170 GB free disk space in /tmp
 
 
 ## Setup Repository
@@ -78,6 +78,10 @@ The following links should help
 - Instructions to create the bucket access and secret keys: please refer to the following [link](https://cloud.ibm.com/docs/cloud-object-storage?topic=cloud-object-storage-uhc-hmac-credentials-main) for details.
 - Instructions to generate IBM Cloud API key: please refer to the following [link](https://cloud.ibm.com/docs/account?topic=account-userapikey)
 
+Note:
+- PowerVS currently only supports import from `us-east` , `us-south` and `eu-de` COS regions. Ensure you create COS service and bucket in one of these regions.
+
+
 ### Running
 
 ```
@@ -89,10 +93,14 @@ where:
 -b: IBM COS Bucket name (eg. ocp-images-bucket)
 -r: IBM COS Region (eg. us-south)
 -f: File to upload (eg. rhcos0820.ova.gz)
--o: Target object name (eg. rhcos0820.ovagz)
+-o: Target object name (eg. rhcos0820.ova.gz)
 -a: IBM COS Bucket Access key
 -s: IBM COS Bucket Secret key
 ```
+
+Note:
+- Please ensure that the `Target object name` follows the pattern `filename-without-dots.ova.gz`. 
+There is a bug in PowerVS which fails to import objects with names like `rhel8.0408.ova.gz`, `rhel.ppc64le.ova.gz`.
 
 ## Import Boot Images in PowerVS
 
