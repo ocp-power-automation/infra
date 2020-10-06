@@ -57,15 +57,14 @@ After successful run of the script, the OVA image file will be available in the 
 
 **Note**:
  - qemu-img package should be available
- - URL must be pointing to an gzipped qcow2 image
+ - URL must be pointing to a plain Qcow2 or gzipped Qcow2 image.
  - Machine should be having enough disk space to create intermediate images.
  - Use a strong password. Example use the following command to generate a password `openssl rand -base64 12`
- - For working with RHEL image, you should have redhat subscription
+ - RedHat CoreOS Qcow2 image can be downloaded from the following [link](https://mirror.openshift.com/pub/openshift-v4/ppc64le/dependencies/rhcos/4.5/4.5.4/rhcos-4.5.4-ppc64le-openstack.ppc64le.qcow2.gz)
+ - For working with RHEL image, you should have RedHat subscription
  - This script supports only official RHEL Cloud image(standard partitioning with two partitions) as of now
- - You can download the the RHEL cloud image(Red Hat Enterprise Linux 8.2 Update KVM Guest Image) from support
-   site(https://access.redhat.com/downloads/content/279/ver=/rhel---8/8.2/ppc64le/product-software)
-   Although the image is named KVM Guest Image, it works for both KVM and PowerVM.
- - You can get the CentOS image from https://cloud.centos.org/centos/8/ppc64le/images/CentOS-8-GenericCloud-8.2.2004-20200611.2.ppc64le.qcow2
+ - You can download the the RHEL cloud image(Red Hat Enterprise Linux 8.2 Update KVM Guest Image) from the [support site](https://access.redhat.com/downloads/content/279/ver=/rhel---8/8.2/ppc64le/product-software). Although the image is named KVM Guest Image, it works for both KVM and PowerVM.
+ - You can get the CentOS image from the following [link]( https://cloud.centos.org/centos/8/ppc64le/images/CentOS-8-GenericCloud-8.2.2004-20200611.2.ppc64le.qcow2)
 
 
 ## Upload Image to IBM Cloud Object Storage (COS)
@@ -99,7 +98,7 @@ where:
 ```
 
 Note:
-- Please ensure that the `Target object name` follows the pattern `filename-without-dots.ova.gz`. 
+- Please ensure that the `Target object name` follows the pattern `filename-without-dots.ova.gz`.
 There is a bug in PowerVS which fails to import objects with names like `rhel8.0408.ova.gz`, `rhel.ppc64le.ova.gz`.
 
 ## Import Boot Images in PowerVS
