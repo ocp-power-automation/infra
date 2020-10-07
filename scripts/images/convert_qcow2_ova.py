@@ -107,9 +107,32 @@ rpm -vih --nodeps http://public.dhe.ibm.com/software/server/POWER/Linux/yum/down
 sed -i 's/^more \/opt\/ibm\/lop\/notice/#more \/opt\/ibm\/lop\/notice/g' /opt/ibm/lop/configure
 echo 'y' | /opt/ibm/lop/configure
 yum install  powerpc-utils librtas DynamicRM  devices.chrp.base.ServiceRM rsct.opt.storagerm rsct.core rsct.basic rsct.core src -y
+yum install -y device-mapper-multipath
+
+cat <<EOF > /etc/multipath.conf
+defaults {
+    user_friendly_names yes
+    verbosity 6
+    polling_interval 10
+    max_polling_interval 50
+    reassign_maps yes
+    failback immediate
+    rr_min_io 2000
+    no_path_retry 10
+    checker_timeout 30
+    find_multipaths smart
+}
+EOF
+
 sed -i 's/GRUB_TIMEOUT=.*$/GRUB_TIMEOUT=60/g' /etc/default/grub
-sed -i 's/GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX="console=tty0 console=hvc0,115200n8  biosdevname=0  crashkernel=auto"/g' /etc/default/grub
+sed -i 's/GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX="console=tty0 console=hvc0,115200n8  biosdevname=0  crashkernel=auto rd.shell rd.debug rd.driver.pre=dm_multipath log_buf_len=1M "/g' /etc/default/grub
+echo 'force_drivers+=" dm-multipath "' >/etc/dracut.conf.d/10-mp.conf
 dracut --regenerate-all --force
+for kernel in $(rpm -q kernel | sort -V | sed 's/kernel-//')
+do
+	echo "Generating initramfs for kernel version: ${kernel}"
+	dracut --kver ${kernel} --force --add multipath --include /etc/multipath /etc/multipath --include /etc/multipath.conf /etc/multipath.conf
+done
 grub2-mkconfig -o /boot/grub2/grub.cfg
 rm -rf /etc/sysconfig/network-scripts/ifcfg-eth0
 echo {{ root_password }} | passwd root --stdin
