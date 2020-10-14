@@ -124,6 +124,53 @@ defaults {
 }
 EOF
 
+# Workaround for the known issue https://bugs.launchpad.net/cloud-init/+bug/1556260,
+# this will ensure to resize the multipath disks post boot only once
+cat <<EOF > /usr/local/bin/resize-mpath-devices.sh
+#!/usr/bin/env bash
+
+set -x
+
+if type multipathd > /dev/null; then
+  echo "multipathd command found"
+  for mpath_dev in \$(multipath -l -v1)
+  do
+    echo "Resizing \${mpath_dev}"
+    partition_count=\$(find /dev/mapper/ -iname "\${mpath_dev}[0-9]*"| wc -l)
+    echo "\$i partitions found"
+    i=1
+    while [[ i -le \$partition_count ]] ;
+    do
+      echo "Resizing partition: \${i}"
+      growpart /dev/mapper/\${mpath_dev} \$i | true
+      i=\$((i+1));
+    done;
+  done
+  sleep 10
+  xfs_growfs -d /
+fi
+EOF
+
+chmod +x /usr/local/bin/resize-mpath-devices.sh
+
+cat <<EOF > /etc/systemd/system/resize-mpath-devices.service
+[Unit]
+Description=Resize the multipath disks
+After=multipathd.service
+ConditionPathExists=!/run/resize-mpath-devices.runonce
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/resize-mpath-devices.sh
+ExecStartPost=/bin/touch /run/resize-mpath-devices.runonce
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+/bin/systemctl enable resize-mpath-devices
+
 sed -i 's/GRUB_TIMEOUT=.*$/GRUB_TIMEOUT=60/g' /etc/default/grub
 sed -i 's/GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX="console=tty0 console=hvc0,115200n8  biosdevname=0  crashkernel=auto rd.shell rd.debug rd.driver.pre=dm_multipath log_buf_len=1M "/g' /etc/default/grub
 echo 'force_drivers+=" dm-multipath "' >/etc/dracut.conf.d/10-mp.conf
