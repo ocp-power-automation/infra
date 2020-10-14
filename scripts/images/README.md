@@ -18,7 +18,7 @@
   - Upgrade `PyYAML` module to v5.1 or newer; see https://stackoverflow.com/questions/55551191/module-yaml-has-no-attribute-fullloader
 - Install `qemu-img` package
 - Install PowerVS (`power-iaas`) CLI; see https://cloud.ibm.com/docs/power-iaas-cli-plugin?topic=power-iaas-cli-plugin-power-iaas-cli-reference
-- Ensure a minimum of 170 GB free disk space in /tmp
+- Ensure a minimum of 170 GB free disk space in /tmp (varies based on the resultant image size)
 
 
 ## Setup Repository
@@ -56,16 +56,43 @@ where:
 After successful run of the script, the OVA image file will be available in the current directory
 
 **Note**:
- - qemu-img package should be available
  - URL must be pointing to a plain Qcow2 or gzipped Qcow2 image.
- - Machine should be having enough disk space to create intermediate images.
  - Use a strong password. Example use the following command to generate a password `openssl rand -base64 12`
- - RedHat CoreOS Qcow2 image can be downloaded from the following [link](https://mirror.openshift.com/pub/openshift-v4/ppc64le/dependencies/rhcos/4.5/4.5.4/rhcos-4.5.4-ppc64le-openstack.ppc64le.qcow2.gz)
- - For working with RHEL image, you should have RedHat subscription
- - This script supports only official RHEL Cloud image(standard partitioning with two partitions) as of now
- - You can download the the RHEL cloud image(Red Hat Enterprise Linux 8.2 Update KVM Guest Image) from the [support site](https://access.redhat.com/downloads/content/279/ver=/rhel---8/8.2/ppc64le/product-software). Although the image is named KVM Guest Image, it works for both KVM and PowerVM.
- - You can get the CentOS image from the following [link]( https://cloud.centos.org/centos/8/ppc64le/images/CentOS-8-GenericCloud-8.2.2004-20200611.2.ppc64le.qcow2)
 
+#### RHEL/CentOS
+
+##### Prerequisite
+- Need a valid RedHat subscription for the RHEL image
+
+##### Image Location
+
+| Distro        | Location     |
+| ------------- |-------------|
+| RHEL 8.x Update KVM Guest Image |https://access.redhat.com/downloads/content/279/ver=/rhel---8/8.2/ppc64le/product-software|
+| CentOS 8.x   |https://cloud.centos.org/centos/8/ppc64le/images/CentOS-8-GenericCloud-8.2.2004-20200611.2.ppc64le.qcow2|
+
+##### How to run:
+```shell script
+# Generates the RHEL ova image of size 120GB with name rhel-82u2-ppc64le from downloaded rhel cloud image located at /root/rhel-8.2-update-2-ppc64le-kvm.qcow2
+$ python3 convert_qcow2_ova.py -u /root/rhel-8.2-update-2-ppc64le-kvm.qcow2 -s 120 -n rhel-82u2-ppc64le -d rhel -U <rhUser> -P <rhPassword> -O <osPassword>
+```
+
+##### Note:
+- Although the RHEL image is named KVM Guest Image, it works for both KVM and PowerVM.
+- This script supports only official RHEL Cloud image(standard partitioning with two partitions) as of now
+
+#### RHCOS(RedHat CoreOS)
+##### Image Location
+| Openshift Release | Location     |
+| ------------- |-------------|
+| 4.5.x |https://mirror.openshift.com/pub/openshift-v4/ppc64le/dependencies/rhcos/4.5/4.5.4/rhcos-4.5.4-ppc64le-openstack.ppc64le.qcow2.gz|
+| 4.6.x(pre-release) |https://mirror.openshift.com/pub/openshift-v4/ppc64le/dependencies/rhcos/pre-release/4.6.0-0.nightly-ppc64le-2020-09-18-070611/rhcos-4.6.0-0.nightly-ppc64le-2020-09-18-070611-openstack.ppc64le.qcow2.gz|
+
+##### How to run:
+```shell script
+# Generates the RHCOS ova image of size 120GB with name rhcos-454-ppc64le from downloaded rhcos image located at /root/rhcos-4.5.4-ppc64le-openstack.ppc64le.qcow2.gz
+$ python3 convert_qcow2_ova.py -u /root/rhcos-4.5.4-ppc64le-openstack.ppc64le.qcow2.gz -s 120 -n rhcos-454-ppc64le -d coreos -U <rhUser> -P <rhPassword> -O <osPassword>
+```
 
 ## Upload Image to IBM Cloud Object Storage (COS)
 
