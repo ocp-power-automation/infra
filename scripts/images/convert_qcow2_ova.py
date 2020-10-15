@@ -3,6 +3,7 @@
 import subprocess
 import sys
 import argparse
+import platform
 import gzip
 import os
 import tarfile
@@ -456,6 +457,26 @@ def check_tmp_freespace(imageSize, tempDir):
         sys.exit(2)
 
 
+def check_host_prereqs():
+    # Check RHEL/CentOS 8 ppc64le
+
+    with open('/etc/os-release','r') as f:
+      if 'el8' not in f.read():
+        print("This program must be run on RHEL/CentOS 8.x system")
+        sys.exit(2)
+
+    # Check machine architecture
+    if platform.machine() != 'ppc64le':
+        print("This program must be run on ppc64le system")
+        sys.exit(2)
+
+    # Check presence of qemu-img binary
+    from shutil import which
+
+    if which('qemu-img') is None:
+        print("qemu-img binary is missing")
+        sys.exit(2)
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -474,6 +495,8 @@ if __name__ == '__main__':
     if (args.imageDist == 'rhel' or args.imageDist == 'centos') and (not args.osPassword):
              print("Root user password is must when using RHEL or CentOS Image distribution")
 
+    # Check for host pre-reqs
+    check_host_prereqs()
 
     # Check free space in `/tmp` and if less than imageSize bail out
     check_tmp_freespace(args.imageSize, args.tempDir)
