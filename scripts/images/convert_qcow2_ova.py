@@ -2,7 +2,8 @@
 
 import subprocess
 import sys
-import getopt
+import argparse
+import platform
 import gzip
 import os
 import tarfile
@@ -15,27 +16,6 @@ from urllib.parse import urlparse
 from pathlib import Path
 from jinja2 import Template
 
-help_message = """convert_qcow2_ova.py -u <imageUrl> -s <imageSize> -n <imageName> -d <imageDist> -U <rhUser> -P <rhPassword> -O <osPassword>
-
--u, --imageUrl                 URL pointing to the qcow2.gz or the absolute local file path
--s, --imageSize                Size (in GB) of the image you want to create
--n, --imageName                Name of the ova image file
--d, --imageDist                Image distribution; coreos, rhel, centos
--U, --rhUser                   Redhat Subscription username(for RHEL)
--P, --rhPassword               Redhat Subscription password(for RHEL)
--O, --osPassword               OS password (for RHEL and CentOS)
-
-Note:
-    - qemu-img binary should be available
-    - URL must be pointing to an gziped qcow2 image
-    - Machine should be having enough disk space to create intermediate images as well
-    - For working with RHEL image, you should have redhat subscription
-    - For RHEL image conversion, the triggering node should be ppc64le(chroot)
-    - This script supports only official RHEL Cloud image(standard partitioning with two partitions) as of now
-    - You can download the the RHEL cloud image(Red Hat Enterprise Linux 8.2 Update KVM Guest Image) 
-        from support site(https://access.redhat.com/downloads/content/279/ver=/rhel---8/8.2/ppc64le/product-software)
-    - You can get the CentOS image from https://cloud.centos.org/centos/8/ppc64le/images/CentOS-8-GenericCloud-8.2.2004-20200611.2.ppc64le.qcow2
-"""
 
 template_meta = """os-type = rhel
 architecture = ppc64le
@@ -309,7 +289,7 @@ def create_tar(image_file_source, image_file_path):
             tar.add(name)
 
 
-def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword, imageDist):
+def prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPassword, imageDist):
     mount_dir = tmpdir + '/' + 'tempMount'
     rhel_bash_file = mount_dir + '/' + 'rhel_bash.sh'
     rhel_cloud_config_file = mount_dir + '/etc/cloud/' + 'cloud.cfg'
@@ -351,7 +331,7 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
                 sys.exit(2)
 
         rhel_bash_template = Template(template_rhel_bash)
-        rhel_bash = rhel_bash_template.render(rh_sub_username=rhUser, rh_sub_password=rhPassword,
+        rhel_bash = rhel_bash_template.render(rh_sub_username=rhnUser, rh_sub_password=rhnPassword,
                                               root_password=osPassword, distribution=imageDist)
         with open(rhel_bash_file, "w") as stream:
             stream.write(rhel_bash)
@@ -397,9 +377,9 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
             print('ERROR: Failed to release the device:', err)
 
 
-def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword):
+def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhnUser, rhnPassword, osPassword, tempDir):
     current_dir = os.getcwd()
-    tmpdir = tempfile.mkdtemp()  # Temporary work directory
+    tmpdir = tempfile.mkdtemp(dir=tempDir)  # Temporary work directory
     image_file_name = get_image_name(imageUrl)  # Get image file name from url
     image_file_path = tmpdir + '/' + image_file_name
     extracted_qcow2_file_path = tmpdir + '/' + remove_extn(image_file_name)
@@ -431,7 +411,7 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
             sys.exit(2)
         if imageDist == 'rhel' or imageDist == 'centos':
             print("Preparing rhel image...")
-            prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword, imageDist)
+            prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPassword, imageDist)
 
         print("Resizing image ....")
         cmd = 'qemu-img resize ' + extracted_raw_file_path + ' ' + imageSize + 'G'
@@ -467,74 +447,61 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
         shutil.rmtree(tmpdir)
 
 
-def check_tmp_freespace(imageSize):
+def check_tmp_freespace(imageSize, tempDir):
+    # Add 50GB buffer
+    buffer_gb = 50.0
+    required_gb = imageSize + buffer_gb
+
     # Calculate freespace in GB.
-    freespace_gb = shutil.disk_usage("/tmp")[2] / (1024 * 1024 * 1024)
-    # Add 1GB buffer
-    freespace_gb_buffer = math.ceil(freespace_gb + 1)
-    if freespace_gb_buffer < float(imageSize):
-        print("Minimum ", freespace_gb_buffer, "GB", " space required in /tmp")
+    freespace_gb = shutil.disk_usage(tempDir)[2] / (1024 * 1024 * 1024)
+
+    if freespace_gb < required_gb:
+        print("Minimum ", required_gb, "GB", " space required in ", tempDir)
         sys.exit(2)
 
 
-def main(argv):
-    ImageUrl = ''
-    imageSize = ''
-    imageName = ''
-    rhUser = ''
-    rhPassword = ''
+def check_host_prereqs():
+    # Check RHEL/CentOS 8 ppc64le
 
-    try:
-        (opts, args) = getopt.getopt(argv, 'hu:s:n:d:U:P:O:', [
-            'imageUrl=',
-            'imageSize=',
-            'imageName=',
-            'imageDist',
-            'rhUser',
-            'rhPassword',
-            'osPassword'
-        ])
-        if len(argv) < 14:
-            print(help_message)
-            sys.exit(2)
-
-    except getopt.GetoptError:
-        print(help_message)
-        sys.exit(2)
-    for (opt, arg) in opts:
-        if opt == '-h':
-            print(help_message)
-            sys.exit()
-        elif opt in ('-u', '--ImageUrl'):
-            ImageUrl = arg
-        elif opt in ('-s', '--imageSize'):
-            imageSize = arg
-        elif opt in ('-n', '--imageName'):
-            imageName = arg
-        elif opt in ('-d', '--imageDist'):
-            imageDist = arg
-        elif opt in ('-U', '--rhUser'):
-            rhUser = arg
-        elif opt in ('-P', '--rhPassword'):
-            rhPassword = arg
-        elif opt in ('-O', '--osPassword'):
-            osPassword = arg
-    if imageDist == 'rhel' and (rhUser is None or rhPassword is None or osPassword is None):
-        print("Please set rhUser,rhPassword, and osPassword")
-        sys.exit(2)
-    if imageDist == 'coreos' and (ImageUrl is None or imageSize is None or imageName is None):
-        print("Please set ImageUrl, imageSize, and imageName")
-        sys.exit(2)
-    if imageDist == 'centos' and (ImageUrl is None or imageSize is None or imageName is None or osPassword is None):
-        print("Please set ImageUrl, imageSize, osPassword and imageName")
+    with open('/etc/os-release','r') as f:
+      if 'el8' not in f.read():
+        print("This program must be run on RHEL/CentOS 8.x system")
         sys.exit(2)
 
-    # Check free space in `/tmp` and if less than imageSize bail out
-    check_tmp_freespace(imageSize)
+    # Check machine architecture
+    if platform.machine() != 'ppc64le':
+        print("This program must be run on ppc64le system")
+        sys.exit(2)
 
-    convert_qcow2_ova(ImageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword)
+    # Check presence of qemu-img binary
+    from shutil import which
 
+    if which('qemu-img') is None:
+        print("qemu-img binary is missing")
+        sys.exit(2)
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-u', '--imageUrl', dest='imageUrl', required=True, help="URL or absolute local file path to the <QCOW2>.gz image")
+    parser.add_argument('-s', '--imageSize', dest='imageSize', type=float,  required=True, help="Size (in GB) of the resultant OVA image")
+    parser.add_argument('-n', '--imageName', dest='imageName', required=True, help="Name of the resultant OVA image")
+    parser.add_argument('-d', '--imageDist', dest='imageDist', required=True, choices=['coreos', 'rhel', 'centos'], help="Image distribution: coreos|rhel|centos")
+    parser.add_argument('-U', '--rhnUser', dest='rhnUser', help="RedHat Subscription username. Required when Image distribution is rhel")
+    parser.add_argument('-P', '--rhnPassword', dest='rhnPassword',help="RedHat Subscription password. Required when Image distribution is rhel")
+    parser.add_argument('-O', '--osPassword', dest='osPassword', help="Root user password. Required when Image distribution is rhel or centos")
+    parser.add_argument('-T', '--tempDir', dest='tempDir', default=tempfile.gettempdir(), help="Scratch space to use for OVA generation (defaults to system specific temp directory, eg. '/tmp')")
+
+    args = parser.parse_args()
+    if args.imageDist == 'rhel' and (not args.rhnUser or not args.rhnPassword):
+             print("RedHat subscription username and password are must when using RHEL distribution")
+    if (args.imageDist == 'rhel' or args.imageDist == 'centos') and (not args.osPassword):
+             print("Root user password is must when using RHEL or CentOS Image distribution")
+
+    # Check for host pre-reqs
+    check_host_prereqs()
+
+    # Check free space in tempDir and if less than imageSize bail out
+    check_tmp_freespace(args.imageSize, args.tempDir)
+
+    convert_qcow2_ova(args.imageUrl, args.imageSize, args.imageName, args.imageDist, args.rhnUser, args.rhnPassword, args.osPassword, args.tempDir)
