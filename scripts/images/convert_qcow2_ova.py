@@ -448,12 +448,15 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhnUser, rhnPas
 
 
 def check_tmp_freespace(imageSize, tempDir):
+    # Add 50GB buffer
+    buffer_gb = 50.0
+    required_gb = imageSize + buffer_gb
+
     # Calculate freespace in GB.
     freespace_gb = shutil.disk_usage(tempDir)[2] / (1024 * 1024 * 1024)
-    # Add 1GB buffer
-    freespace_gb_buffer = math.ceil(freespace_gb + 1)
-    if freespace_gb_buffer < float(imageSize):
-        print("Minimum ", freespace_gb_buffer, "GB", " space required in /tmp")
+
+    if freespace_gb < required_gb:
+        print("Minimum ", required_gb, "GB", " space required in ", tempDir)
         sys.exit(2)
 
 
@@ -481,7 +484,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', '--imageUrl', dest='imageUrl', required=True, help="URL or absolute local file path to the <QCOW2>.gz image")
-    parser.add_argument('-s', '--imageSize', dest='imageSize', required=True, help="Size (in GB) of the resultant OVA image")
+    parser.add_argument('-s', '--imageSize', dest='imageSize', type=float,  required=True, help="Size (in GB) of the resultant OVA image")
     parser.add_argument('-n', '--imageName', dest='imageName', required=True, help="Name of the resultant OVA image")
     parser.add_argument('-d', '--imageDist', dest='imageDist', required=True, choices=['coreos', 'rhel', 'centos'], help="Image distribution: coreos|rhel|centos")
     parser.add_argument('-U', '--rhnUser', dest='rhnUser', help="RedHat Subscription username. Required when Image distribution is rhel")
@@ -498,7 +501,7 @@ if __name__ == '__main__':
     # Check for host pre-reqs
     check_host_prereqs()
 
-    # Check free space in `/tmp` and if less than imageSize bail out
+    # Check free space in tempDir and if less than imageSize bail out
     check_tmp_freespace(args.imageSize, args.tempDir)
 
     convert_qcow2_ova(args.imageUrl, args.imageSize, args.imageName, args.imageDist, args.rhnUser, args.rhnPassword, args.osPassword, args.tempDir)
