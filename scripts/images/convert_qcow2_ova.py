@@ -450,7 +450,7 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhnUser, rhnPas
 def check_tmp_freespace(imageSize, tempDir):
     # Add 50GB buffer
     buffer_gb = 50.0
-    required_gb = imageSize + buffer_gb
+    required_gb = float(imageSize) + buffer_gb
 
     # Calculate freespace in GB.
     freespace_gb = shutil.disk_usage(tempDir)[2] / (1024 * 1024 * 1024)
@@ -484,7 +484,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', '--imageUrl', dest='imageUrl', required=True, help="URL or absolute local file path to the <QCOW2>.gz image")
-    parser.add_argument('-s', '--imageSize', dest='imageSize', type=float,  required=True, help="Size (in GB) of the resultant OVA image")
+    parser.add_argument('-s', '--imageSize', dest='imageSize', required=False, default='120', help="Size (in GB) of the resultant OVA image. Default size is 120 GB")
     parser.add_argument('-n', '--imageName', dest='imageName', required=True, help="Name of the resultant OVA image")
     parser.add_argument('-d', '--imageDist', dest='imageDist', required=True, choices=['coreos', 'rhel', 'centos'], help="Image distribution: coreos|rhel|centos")
     parser.add_argument('-U', '--rhnUser', dest='rhnUser', help="RedHat Subscription username. Required when Image distribution is rhel")
