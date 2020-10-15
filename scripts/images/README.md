@@ -16,7 +16,7 @@
 - Install `python3` package
   - Install `jinja2` & `boto3` modules with `pip3`
   - Upgrade `PyYAML` module to v5.1 or newer; see https://stackoverflow.com/questions/55551191/module-yaml-has-no-attribute-fullloader
-- Install `qemu-img` package
+- Install `qemu-img cloud-utils-growpart` packages
 - Install PowerVS (`power-iaas`) CLI; see https://cloud.ibm.com/docs/power-iaas-cli-plugin?topic=power-iaas-cli-plugin-power-iaas-cli-reference
 - Ensure a minimum of 170 GB free disk space in /tmp (varies based on the resultant image size)
 
