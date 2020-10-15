@@ -2,7 +2,7 @@
 
 import subprocess
 import sys
-import getopt
+import argparse
 import gzip
 import os
 import tarfile
@@ -15,27 +15,6 @@ from urllib.parse import urlparse
 from pathlib import Path
 from jinja2 import Template
 
-help_message = """convert_qcow2_ova.py -u <imageUrl> -s <imageSize> -n <imageName> -d <imageDist> -U <rhUser> -P <rhPassword> -O <osPassword>
-
--u, --imageUrl                 URL pointing to the qcow2.gz or the absolute local file path
--s, --imageSize                Size (in GB) of the image you want to create
--n, --imageName                Name of the ova image file
--d, --imageDist                Image distribution; coreos, rhel, centos
--U, --rhUser                   Redhat Subscription username(for RHEL)
--P, --rhPassword               Redhat Subscription password(for RHEL)
--O, --osPassword               OS password (for RHEL and CentOS)
-
-Note:
-    - qemu-img binary should be available
-    - URL must be pointing to an gziped qcow2 image
-    - Machine should be having enough disk space to create intermediate images as well
-    - For working with RHEL image, you should have redhat subscription
-    - For RHEL image conversion, the triggering node should be ppc64le(chroot)
-    - This script supports only official RHEL Cloud image(standard partitioning with two partitions) as of now
-    - You can download the the RHEL cloud image(Red Hat Enterprise Linux 8.2 Update KVM Guest Image) 
-        from support site(https://access.redhat.com/downloads/content/279/ver=/rhel---8/8.2/ppc64le/product-software)
-    - You can get the CentOS image from https://cloud.centos.org/centos/8/ppc64le/images/CentOS-8-GenericCloud-8.2.2004-20200611.2.ppc64le.qcow2
-"""
 
 template_meta = """os-type = rhel
 architecture = ppc64le
@@ -477,64 +456,26 @@ def check_tmp_freespace(imageSize):
         sys.exit(2)
 
 
-def main(argv):
-    ImageUrl = ''
-    imageSize = ''
-    imageName = ''
-    rhUser = ''
-    rhPassword = ''
+if __name__ == '__main__':
 
-    try:
-        (opts, args) = getopt.getopt(argv, 'hu:s:n:d:U:P:O:', [
-            'imageUrl=',
-            'imageSize=',
-            'imageName=',
-            'imageDist',
-            'rhUser',
-            'rhPassword',
-            'osPassword'
-        ])
-        if len(argv) < 14:
-            print(help_message)
-            sys.exit(2)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-u', '--imageUrl', dest='imageUrl', required=True, help="URL or absolute local file path to the <QCOW2>.gz image")
+    parser.add_argument('-s', '--imageSize', dest='imageSize', required=True, help="Size (in GB) of the resultant OVA image")
+    parser.add_argument('-n', '--imageName', dest='imageName', required=True, help="Name of the OVA image")
+    parser.add_argument('-d', '--imageDist', dest='imageDist', required=True, choices=['coreos', 'rhel', 'centos'], help="Image distribution: coreos|rhel|centos")
+    parser.add_argument('-U', '--rhUser', dest='rhUser', help="RedHat Subscription username. Required when Image distribution is rhel")
+    parser.add_argument('-P', '--rhPassword', dest='rhPassword',help="RedHat Subscription password. Required when Image distribution is rhel")
+    parser.add_argument('-O', '--osPassword', dest='osPassword', help="Root user password. Required when Image distribution is rhel or centos")
 
-    except getopt.GetoptError:
-        print(help_message)
-        sys.exit(2)
-    for (opt, arg) in opts:
-        if opt == '-h':
-            print(help_message)
-            sys.exit()
-        elif opt in ('-u', '--ImageUrl'):
-            ImageUrl = arg
-        elif opt in ('-s', '--imageSize'):
-            imageSize = arg
-        elif opt in ('-n', '--imageName'):
-            imageName = arg
-        elif opt in ('-d', '--imageDist'):
-            imageDist = arg
-        elif opt in ('-U', '--rhUser'):
-            rhUser = arg
-        elif opt in ('-P', '--rhPassword'):
-            rhPassword = arg
-        elif opt in ('-O', '--osPassword'):
-            osPassword = arg
-    if imageDist == 'rhel' and (rhUser is None or rhPassword is None or osPassword is None):
-        print("Please set rhUser,rhPassword, and osPassword")
-        sys.exit(2)
-    if imageDist == 'coreos' and (ImageUrl is None or imageSize is None or imageName is None):
-        print("Please set ImageUrl, imageSize, and imageName")
-        sys.exit(2)
-    if imageDist == 'centos' and (ImageUrl is None or imageSize is None or imageName is None or osPassword is None):
-        print("Please set ImageUrl, imageSize, osPassword and imageName")
-        sys.exit(2)
+    args = parser.parse_args()
+    if args.imageDist == 'rhel' and (not args.rhUser or not args.rhPassword):
+             print("RedHat subscription username and password are must when using RHEL distribution")
+    if (args.imageDist == 'rhel' or args.imageDist == 'centos') and (not args.osPassword):
+             print("Root user password is must when using RHEL or CentOS Image distribution")
+
 
     # Check free space in `/tmp` and if less than imageSize bail out
-    check_tmp_freespace(imageSize)
+    check_tmp_freespace(args.imageSize)
 
-    convert_qcow2_ova(ImageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword)
-
-
-if __name__ == '__main__':
-    main(sys.argv[1:])
-
+    sys.exit(2)
+    convert_qcow2_ova(args.imageUrl, args.imageSize, args.imageName, args.imageDist, args.rhUser, args.rhPassword, args.osPassword)
