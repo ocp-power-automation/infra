@@ -376,9 +376,9 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
             print('ERROR: Failed to release the device:', err)
 
 
-def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword):
+def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword, tempDir):
     current_dir = os.getcwd()
-    tmpdir = tempfile.mkdtemp()  # Temporary work directory
+    tmpdir = tempfile.mkdtemp(dir=tempDir)  # Temporary work directory
     image_file_name = get_image_name(imageUrl)  # Get image file name from url
     image_file_path = tmpdir + '/' + image_file_name
     extracted_qcow2_file_path = tmpdir + '/' + remove_extn(image_file_name)
@@ -446,9 +446,9 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
         shutil.rmtree(tmpdir)
 
 
-def check_tmp_freespace(imageSize):
+def check_tmp_freespace(imageSize, tempDir):
     # Calculate freespace in GB.
-    freespace_gb = shutil.disk_usage("/tmp")[2] / (1024 * 1024 * 1024)
+    freespace_gb = shutil.disk_usage(tempDir)[2] / (1024 * 1024 * 1024)
     # Add 1GB buffer
     freespace_gb_buffer = math.ceil(freespace_gb + 1)
     if freespace_gb_buffer < float(imageSize):
@@ -461,11 +461,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', '--imageUrl', dest='imageUrl', required=True, help="URL or absolute local file path to the <QCOW2>.gz image")
     parser.add_argument('-s', '--imageSize', dest='imageSize', required=True, help="Size (in GB) of the resultant OVA image")
-    parser.add_argument('-n', '--imageName', dest='imageName', required=True, help="Name of the OVA image")
+    parser.add_argument('-n', '--imageName', dest='imageName', required=True, help="Name of the resultant OVA image")
     parser.add_argument('-d', '--imageDist', dest='imageDist', required=True, choices=['coreos', 'rhel', 'centos'], help="Image distribution: coreos|rhel|centos")
     parser.add_argument('-U', '--rhUser', dest='rhUser', help="RedHat Subscription username. Required when Image distribution is rhel")
     parser.add_argument('-P', '--rhPassword', dest='rhPassword',help="RedHat Subscription password. Required when Image distribution is rhel")
     parser.add_argument('-O', '--osPassword', dest='osPassword', help="Root user password. Required when Image distribution is rhel or centos")
+    parser.add_argument('-T', '--tempDir', dest='tempDir', default=tempfile.gettempdir(), help="Scratch space to use for OVA generation (defaults to system specific temp directory, eg. '/tmp')")
 
     args = parser.parse_args()
     if args.imageDist == 'rhel' and (not args.rhUser or not args.rhPassword):
@@ -475,7 +476,6 @@ if __name__ == '__main__':
 
 
     # Check free space in `/tmp` and if less than imageSize bail out
-    check_tmp_freespace(args.imageSize)
+    check_tmp_freespace(args.imageSize, args.tempDir)
 
-    sys.exit(2)
-    convert_qcow2_ova(args.imageUrl, args.imageSize, args.imageName, args.imageDist, args.rhUser, args.rhPassword, args.osPassword)
+    convert_qcow2_ova(args.imageUrl, args.imageSize, args.imageName, args.imageDist, args.rhUser, args.rhPassword, args.osPassword, args.tempDir)
