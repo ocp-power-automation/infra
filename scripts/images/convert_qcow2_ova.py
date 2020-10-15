@@ -289,7 +289,7 @@ def create_tar(image_file_source, image_file_path):
             tar.add(name)
 
 
-def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword, imageDist):
+def prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPassword, imageDist):
     mount_dir = tmpdir + '/' + 'tempMount'
     rhel_bash_file = mount_dir + '/' + 'rhel_bash.sh'
     rhel_cloud_config_file = mount_dir + '/etc/cloud/' + 'cloud.cfg'
@@ -331,7 +331,7 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
                 sys.exit(2)
 
         rhel_bash_template = Template(template_rhel_bash)
-        rhel_bash = rhel_bash_template.render(rh_sub_username=rhUser, rh_sub_password=rhPassword,
+        rhel_bash = rhel_bash_template.render(rh_sub_username=rhnUser, rh_sub_password=rhnPassword,
                                               root_password=osPassword, distribution=imageDist)
         with open(rhel_bash_file, "w") as stream:
             stream.write(rhel_bash)
@@ -377,7 +377,7 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword
             print('ERROR: Failed to release the device:', err)
 
 
-def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassword, osPassword, tempDir):
+def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhnUser, rhnPassword, osPassword, tempDir):
     current_dir = os.getcwd()
     tmpdir = tempfile.mkdtemp(dir=tempDir)  # Temporary work directory
     image_file_name = get_image_name(imageUrl)  # Get image file name from url
@@ -411,7 +411,7 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhUser, rhPassw
             sys.exit(2)
         if imageDist == 'rhel' or imageDist == 'centos':
             print("Preparing rhel image...")
-            prepare_rhel(extracted_raw_file_path, tmpdir, rhUser, rhPassword, osPassword, imageDist)
+            prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPassword, imageDist)
 
         print("Resizing image ....")
         cmd = 'qemu-img resize ' + extracted_raw_file_path + ' ' + imageSize + 'G'
@@ -484,13 +484,13 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--imageSize', dest='imageSize', required=True, help="Size (in GB) of the resultant OVA image")
     parser.add_argument('-n', '--imageName', dest='imageName', required=True, help="Name of the resultant OVA image")
     parser.add_argument('-d', '--imageDist', dest='imageDist', required=True, choices=['coreos', 'rhel', 'centos'], help="Image distribution: coreos|rhel|centos")
-    parser.add_argument('-U', '--rhUser', dest='rhUser', help="RedHat Subscription username. Required when Image distribution is rhel")
-    parser.add_argument('-P', '--rhPassword', dest='rhPassword',help="RedHat Subscription password. Required when Image distribution is rhel")
+    parser.add_argument('-U', '--rhnUser', dest='rhnUser', help="RedHat Subscription username. Required when Image distribution is rhel")
+    parser.add_argument('-P', '--rhnPassword', dest='rhnPassword',help="RedHat Subscription password. Required when Image distribution is rhel")
     parser.add_argument('-O', '--osPassword', dest='osPassword', help="Root user password. Required when Image distribution is rhel or centos")
     parser.add_argument('-T', '--tempDir', dest='tempDir', default=tempfile.gettempdir(), help="Scratch space to use for OVA generation (defaults to system specific temp directory, eg. '/tmp')")
 
     args = parser.parse_args()
-    if args.imageDist == 'rhel' and (not args.rhUser or not args.rhPassword):
+    if args.imageDist == 'rhel' and (not args.rhnUser or not args.rhnPassword):
              print("RedHat subscription username and password are must when using RHEL distribution")
     if (args.imageDist == 'rhel' or args.imageDist == 'centos') and (not args.osPassword):
              print("Root user password is must when using RHEL or CentOS Image distribution")
@@ -501,4 +501,4 @@ if __name__ == '__main__':
     # Check free space in `/tmp` and if less than imageSize bail out
     check_tmp_freespace(args.imageSize, args.tempDir)
 
-    convert_qcow2_ova(args.imageUrl, args.imageSize, args.imageName, args.imageDist, args.rhUser, args.rhPassword, args.osPassword, args.tempDir)
+    convert_qcow2_ova(args.imageUrl, args.imageSize, args.imageName, args.imageDist, args.rhnUser, args.rhnPassword, args.osPassword, args.tempDir)
