@@ -1,0 +1,6 @@
+---
+sourceBucket: ocp4-images-bucket
+destinationBucket: ocp4-images-bucket-retired
+objectList:
+  - rhel-82-10072020.ova.gz
+  - centos-82-10072020.ova.gz
