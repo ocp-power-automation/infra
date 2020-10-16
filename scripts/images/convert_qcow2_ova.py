@@ -317,12 +317,28 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPasswo
         sys.exit(2)
 
     try:
+        partition_number = "2"
         print("mounting the loop device ...")
-        cmd = 'mount -o nouuid ' + loop_device + 'p2' + ' ' + mount_dir
+        cmd = 'mount -o nouuid ' + loop_device + 'p' + partition_number + ' ' + mount_dir
         out, err, ret = exec_cmd(cmd)
         if ret != 0:
             print('ERROR: Failed mounting the device:', err)
             sys.exit(2)
+
+        print("growing the partition...")
+        cmd = 'growpart ' + loop_device + ' ' + partition_number
+        out, err, ret = exec_cmd(cmd)
+        if ret != 0:
+            print('ERROR: Failed growpart:', err)
+            sys.exit(2)
+
+        print("expanding the filesystem...")
+        cmd = 'xfs_growfs -d ' + loop_device + 'p' + partition_number
+        out, err, ret = exec_cmd(cmd)
+        if ret != 0:
+            print('ERROR: Failed xfs_growfs:', err)
+            sys.exit(2)
+
         for sdir in ('/proc', '/dev', '/sys', '/var/run/', '/etc/machine-id'):
             cmd = 'mount -o bind ' + sdir + ' ' + mount_dir + sdir
             out, err, ret = exec_cmd(cmd)
@@ -409,9 +425,6 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhnUser, rhnPas
         if ret != 0:
             print('ERROR: problem converting file (do you have qemu-img installed?)')
             sys.exit(2)
-        if imageDist == 'rhel' or imageDist == 'centos':
-            print("Preparing rhel image...")
-            prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPassword, imageDist)
 
         print("Resizing image ....")
         cmd = 'qemu-img resize ' + extracted_raw_file_path + ' ' + imageSize + 'G'
@@ -419,6 +432,10 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhnUser, rhnPas
         if ret != 0:
             print('ERROR: Resizing failed')
             sys.exit(2)
+
+        if imageDist == 'rhel' or imageDist == 'centos':
+            print("Preparing rhel image...")
+            prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPassword, imageDist)
 
         print("Getting new image size...")
         volumesize = get_file_size(extracted_raw_file_path)
