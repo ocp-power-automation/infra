@@ -325,18 +325,35 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPasswo
             print('ERROR: Failed mounting the device:', err)
             sys.exit(2)
 
-        print("growing the partition...")
+        print("Resizing the partition...")
         cmd = 'growpart ' + loop_device + ' ' + partition_number
         out, err, ret = exec_cmd(cmd)
         if ret != 0:
             print('ERROR: Failed growpart:', err)
             sys.exit(2)
 
-        print("expanding the filesystem...")
-        cmd = 'xfs_growfs -d ' + loop_device + 'p' + partition_number
+        print("Resizing the filesystem...")
+
+        # finding the filesystem type
+        cmd = 'blkid ' + loop_device + 'p' + partition_number + ' -o value -s TYPE'
         out, err, ret = exec_cmd(cmd)
         if ret != 0:
-            print('ERROR: Failed xfs_growfs:', err)
+            print('ERROR: Failed to find a filesystem type for a partition:', err)
+            sys.exit(2)
+
+        fs_type = out.rstrip()
+
+        if fs_type == "xfs":
+            cmd = 'xfs_growfs -d ' + loop_device + 'p' + partition_number
+        elif fs_type in ["ext2", "ext3", "ext4"]:
+            cmd = 'resize2fs ' + loop_device + 'p' + partition_number
+        else:
+            print('ERROR: unknown filesystem, can\'t handle :', fs_type)
+            sys.exit(2)
+
+        out, err, ret = exec_cmd(cmd)
+        if ret != 0:
+            print('ERROR: Failed to resize the filesystem:', err)
             sys.exit(2)
 
         for sdir in ('/proc', '/dev', '/sys', '/var/run/', '/etc/machine-id'):
@@ -434,7 +451,7 @@ def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhnUser, rhnPas
             sys.exit(2)
 
         if imageDist == 'rhel' or imageDist == 'centos':
-            print("Preparing rhel image...")
+            print("Preparing ", imageDist, " image...")
             prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPassword, imageDist)
 
         print("Getting new image size...")
