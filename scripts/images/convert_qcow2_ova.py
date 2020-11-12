@@ -412,7 +412,7 @@ def prepare_rhel(extracted_raw_file_path, tmpdir, rhnUser, rhnPassword, osPasswo
 
 def convert_qcow2_ova(imageUrl, imageSize, imageName, imageDist, rhnUser, rhnPassword, osPassword, tempDir):
     current_dir = os.getcwd()
-    tmpdir = tempfile.mkdtemp(dir=tempDir)  # Temporary work directory
+    tmpdir = os.path.abspath(tempfile.mkdtemp(dir=tempDir))  # Temporary work directory
     image_file_name = get_image_name(imageUrl)  # Get image file name from url
     image_file_path = tmpdir + '/' + image_file_name
     extracted_qcow2_file_path = tmpdir + '/' + remove_extn(image_file_name)
