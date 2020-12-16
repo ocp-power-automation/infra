@@ -111,4 +111,8 @@ def main(argv):
 
 
 if __name__ == '__main__':
+    print("*******************************************************************************")
+    print("This scripts is deprecated in favor of pvsadm. Try pvsadm today, it's great!")
+    print("For more information: https://github.com/ppc64le-cloud/pvsadm")
+    print("*******************************************************************************")
     main(sys.argv[1:])

@@ -1,3 +1,5 @@
+## NOTE: These scripts are deprecated in favor of [pvsadm](https://github.com/ppc64le-cloud/pvsadm). Try [pvsadm](https://github.com/ppc64le-cloud/pvsadm) today, it's great!
+
 # Misc Image Handling Scripts for PowerVS
 
 - [Misc Image Handling Scripts for PowerVS](#misc-image-handling-scripts-for-powervs)
