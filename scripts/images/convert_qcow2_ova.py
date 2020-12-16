@@ -515,7 +515,10 @@ def check_host_prereqs():
         sys.exit(2)
 
 if __name__ == '__main__':
-
+    print("*******************************************************************************")
+    print("This scripts is deprecated in favor of pvsadm. Try pvsadm today, it's great!")
+    print("For more information: https://github.com/ppc64le-cloud/pvsadm")
+    print("*******************************************************************************")
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', '--imageUrl', dest='imageUrl', required=True, help="URL or absolute local file path to the <QCOW2>.gz image")
     parser.add_argument('-s', '--imageSize', dest='imageSize', required=False, default='120', help="Size (in GB) of the resultant OVA image. Default size is 120 GB")
