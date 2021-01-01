@@ -153,3 +153,28 @@ variable "vm_id_prefix" {
 variable "vm_id" {
     default   = ""
 }
+
+variable "storage_type" {
+    #Supported values: nfs (other value won't setup a storageclass)
+    type    = string
+    default = ""
+}
+
+variable "volume_size" {
+    # If storage_type = nfs, a new volume of this size will be attached to the bastion node.
+    # Value in GB
+    type    = string
+    default = ""
+}
+
+variable "volume_type" {
+    type        = string
+    description = "The volume type (ssd, standard, tier1, tier3)"
+    default     = ""
+}
+
+variable "volume_shareable" {
+    type        = bool
+    description = "If the volumes can be shared or not (true/false)"
+    default     = false
+}
