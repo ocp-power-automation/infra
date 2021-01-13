@@ -40,6 +40,6 @@ module "prepare" {
     volume_size                     = var.volume_size
     volume_shareable                = var.volume_shareable
     setup_squid_proxy               = false
-    proxy                           = {} 
-    ansible_repo_name               = ""
+    proxy                           = {}
+    ansible_repo_name               = "ansible-2.9-for-rhel-8-ppc64le-rpms"
 }
