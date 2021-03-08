@@ -44,4 +44,5 @@ module "prepare" {
     setup_squid_proxy               = false
     proxy                           = {}
     ansible_repo_name               = "ansible-2.9-for-rhel-8-ppc64le-rpms"
+    bastion_health_status           = var.bastion_health_status
 }
