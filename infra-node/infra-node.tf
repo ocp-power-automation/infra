@@ -38,7 +38,6 @@ module "prepare" {
     rhel_subscription_activationkey = ""
     rhel_smt                        = var.rhel_smt
     storage_type                    = var.storage_type
-    volume_type                     = var.volume_type
     volume_size                     = var.volume_size
     volume_shareable                = var.volume_shareable
     setup_squid_proxy               = false
