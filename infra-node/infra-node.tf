@@ -14,6 +14,7 @@ locals {
     # Generates vm_id as combination of vm_id_prefix + (random_id or user-defined vm_id)
     vm_id        = var.vm_id == "" ? random_id.label[0].hex : "${var.vm_id_prefix}-${var.vm_id}"
     name_prefix  = "${local.vm_id}-${var.ibmcloud_zone}"
+    node_prefix  = "${var.ibmcloud_zone}-"
 }
 
 module "prepare" {
@@ -22,6 +23,7 @@ module "prepare" {
     bastion                         = var.bastion
     service_instance_id             = var.service_instance_id
     name_prefix                     = local.name_prefix
+    node_prefix                     = local.node_prefix   
     cluster_id                      = local.vm_id
     cluster_domain                  = ""
     rhel_image_name                 = var.rhel_image_name
