@@ -49,5 +49,6 @@ module "prepare" {
     ansible_repo_name               = "ansible-2.9-for-rhel-8-ppc64le-rpms"
     bastion_health_status           = var.bastion_health_status
     private_network_mtu             = 1450
-    connection_timeout              = 30    
+    connection_timeout              = 30
+    fips_compliant                  = false    
 }
